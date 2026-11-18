@@ -227,6 +227,10 @@
   .feet i{ display:block; width:9%; height:1.4em; border-radius:0 0 .9em .9em;
     background:linear-gradient(180deg,#0f0f0e,#050505); box-shadow:inset 0 .15em .2em rgba(255,255,255,.06); }
 
+  .knob{cursor:pointer;transition:transform .35s cubic-bezier(.3,1.4,.5,1);user-select:none}
+  .slot{cursor:ns-resize;touch-action:none}
+  .slot i{cursor:grab}
+
   /* ---------- Bio ---------- */
   .bio{ position:fixed; inset:0; z-index:20; background:rgba(255,255,255,.97);
     display:flex; align-items:center; justify-content:center; padding:32px;
@@ -308,29 +312,86 @@
   const video  = document.getElementById('video');
   const canvas = document.getElementById('noise');
   const ctx    = canvas.getContext('2d');
+  const knobCanal = document.querySelector('.knob.k1');
+  const knobSint  = document.querySelector('.knob.k2');
+  const dialNum   = document.querySelector('.dial b');
+  const [slotVol, slotBri] = document.querySelectorAll('.slot');
 
+  /* --- estática --- */
   const img = ctx.createImageData(canvas.width, canvas.height);
   function drawNoise(){
     const d = img.data;
-    for(let i=0;i<d.length;i+=4){ const v=Math.random()*255; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; }
+    for(let k=0;k<d.length;k+=4){ const v=Math.random()*255; d[k]=d[k+1]=d[k+2]=v; d[k+3]=255; }
     ctx.putImageData(img,0,0);
   }
   let last = 0;
   (function loop(t){ if(t-last>55){ drawNoise(); last=t; } requestAnimationFrame(loop); })(0);
 
+  /* --- canales --- */
   let i = 0;
   function play(idx){
     screen.classList.add('static');
+    dialNum.textContent = idx + 1;
+    knobCanal.style.transform = `rotate(${-28 + idx*40}deg)`;
     if(!VIDEOS.length) return;
     video.src = VIDEOS[idx];
     video.loop = VIDEOS.length === 1;
     video.play().catch(()=>{});
   }
+  function setChannel(n){
+    if(!VIDEOS.length) return;
+    i = (n + VIDEOS.length) % VIDEOS.length;
+    play(i);
+  }
   video.addEventListener('playing', ()=> setTimeout(()=>screen.classList.remove('static'), 250));
-  video.addEventListener('ended', ()=>{ i=(i+1)%VIDEOS.length; play(i); });
-  video.addEventListener('error', ()=>{ if(VIDEOS.length>1){ i=(i+1)%VIDEOS.length; setTimeout(()=>play(i),600); } });
+  video.addEventListener('ended', ()=> setChannel(i+1));
+  video.addEventListener('error', ()=>{ if(VIDEOS.length>1) setTimeout(()=>setChannel(i+1),600); });
+
+  knobCanal.addEventListener('click', ()=> setChannel(i+1));
+  knobCanal.addEventListener('wheel', e=>{ e.preventDefault(); setChannel(i + (e.deltaY>0?1:-1)); }, {passive:false});
+
+  /* --- sintonía: gira y mete estática --- */
+  let sint = 52;
+  function girarSint(dir){
+    sint += dir*30;
+    knobSint.style.transform = `rotate(${sint}deg)`;
+    screen.classList.add('static');
+    setTimeout(()=>{ if(!video.paused && video.readyState>2) screen.classList.remove('static'); }, 350);
+  }
+  knobSint.addEventListener('click', ()=> girarSint(1));
+  knobSint.addEventListener('wheel', e=>{ e.preventDefault(); girarSint(e.deltaY>0?1:-1); }, {passive:false});
+
+  /* --- sliders (arriba = más) --- */
+  let userTouched = false;
+  const MAX = 0.75;  // recorrido de la perilla dentro de la ranura
+  function bindSlider(slot, onChange){
+    const handle = slot.querySelector('i');
+    const set = p => {
+      p = Math.min(MAX, Math.max(0, p));
+      handle.style.top = (p*100) + '%';
+      onChange(1 - p/MAX);
+    };
+    const move = e => { const r = slot.getBoundingClientRect(); set((e.clientY - r.top)/r.height - .12); };
+    slot.addEventListener('pointerdown', e=>{
+      slot.setPointerCapture(e.pointerId); move(e);
+      slot.addEventListener('pointermove', move);
+    });
+    slot.addEventListener('pointerup', ()=> slot.removeEventListener('pointermove', move));
+    set(parseFloat(handle.style.top)/100);   // valor inicial
+  }
+  bindSlider(slotVol, v=>{
+    video.volume = v;
+    if(userTouched) video.muted = (v === 0);
+  });
+  bindSlider(slotBri, v=>{
+    video.style.filter = `contrast(1.1) saturate(1.18) brightness(${(0.55 + v*0.9).toFixed(2)}) blur(.45px)`;
+  });
+  // el navegador solo deja sonar el video después de que el usuario interactúa
+  slotVol.addEventListener('pointerdown', ()=>{ userTouched = true; video.muted = (video.volume === 0); });
+
   play(i);
 
+  /* --- bio --- */
   const bio = document.getElementById('bio');
   document.getElementById('bioBtn').onclick   = ()=>bio.classList.add('open');
   document.getElementById('bioClose').onclick = ()=>bio.classList.remove('open');
@@ -338,4 +399,3 @@
 </script>
 </body>
 </html>
-
