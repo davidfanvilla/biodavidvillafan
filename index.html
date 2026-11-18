@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{ --ink:#111; --paper:#fff; }
+  :root{ --ink:#111; --paper:#fff; --chrome:132px; }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
@@ -40,7 +40,8 @@
      TV  — todas las medidas en "em" para escalar entero
      ===================================================== */
   .tv{
-    --w:min(84vw, 980px, 122vh);
+    --w:min(84vw, 980px, calc((100vh - var(--chrome)) * 1.4));
+    --w:min(84vw, 980px, calc((100dvh - var(--chrome)) * 1.4));
     width:var(--w);
     font-size:calc(var(--w) / 62);      /* 1em ≈ 1/62 del ancho del TV */
     position:relative;
@@ -230,6 +231,7 @@
   .knob{cursor:pointer;transition:transform .35s cubic-bezier(.3,1.4,.5,1);user-select:none}
   .slot{cursor:ns-resize;touch-action:none}
   .slot i{cursor:grab}
+  .slot::before{content:"";position:absolute;inset:-.4em -1.4em}
 
   /* ---------- Bio ---------- */
   .bio{ position:fixed; inset:0; z-index:20; background:rgba(255,255,255,.97);
@@ -245,9 +247,21 @@
   @media (max-width:640px){
     .tv{--w:96vw}
     .cabinet{grid-template-columns:1fr 9em; gap:1.2em; padding:2.4em 1.6em 4em 2em}
-    .grille,.sliders,.dial{display:none}
+    .grille,.dial{display:none}
+    .cabinet{grid-template-columns:1fr 11em}
+    .panel{padding:1.2em .6em 1em}
+    .sliders{gap:1.2em}
+    .slot{width:1em;height:6em}
+    .slot i{width:2.4em;margin-left:-1.2em;height:1.4em}
+    .label{font-size:.85em;letter-spacing:.1em}
     .bezel{padding:1.8em}
   }
+  @media (max-height:520px){
+    :root{--chrome:76px}
+    header{padding:12px 20px}
+    main{padding:52px 16px 16px}
+  }
+  @media (max-height:520px) and (max-width:640px){ .tv{--w:min(96vw,calc((100dvh - var(--chrome)) * 1.4))} }
   @media (prefers-reduced-motion:reduce){ .scan,.roll,.led,.screen{animation:none} }
 </style>
 </head>
